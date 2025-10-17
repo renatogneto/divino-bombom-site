@@ -29,7 +29,7 @@ const OrderForm = () => {
 
     const whatsappMessage = `*Novo Pedido - Divino Bombom*%0A%0A*Nome:* ${formData.name}%0A*Telefone:* ${formData.phone}%0A*E-mail:* ${formData.email}%0A%0A*Pedido:*%0A${formData.message}`;
     
-    const whatsappNumber = "557191246835";
+    const whatsappNumber = "5571991246835";
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
     
     window.open(whatsappUrl, '_blank');
