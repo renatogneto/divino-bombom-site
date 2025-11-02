@@ -33,17 +33,19 @@ const OrderForm = () => {
     setLoading(true);
 
     try {
-      // Save to database
-      const { error } = await supabase.from("orders").insert([{
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email,
-        description: formData.message,
-        delivery_date: formData.deliveryDate,
-        status: "pending",
-      }]);
+      // Call secure edge function to create order
+      const { data, error } = await supabase.functions.invoke('create-order', {
+        body: {
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          description: formData.message,
+          delivery_date: formData.deliveryDate,
+        },
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao criar pedido');
 
       // Send to WhatsApp
       const whatsappMessage = `*Novo Pedido - Divino Bombom*%0A%0A*Nome:* ${formData.name}%0A*Telefone:* ${formData.phone}%0A*E-mail:* ${formData.email}%0A*Data de Entrega:* ${new Date(formData.deliveryDate).toLocaleDateString('pt-BR')}%0A%0A*Pedido:*%0A${formData.message}`;
