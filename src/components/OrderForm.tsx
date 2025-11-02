@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { ShoppingBag } from "lucide-react";
 
 const OrderForm = () => {
@@ -13,12 +14,14 @@ const OrderForm = () => {
     phone: "",
     email: "",
     message: "",
+    deliveryDate: "",
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.phone || !formData.email || !formData.message) {
+    if (!formData.name || !formData.phone || !formData.email || !formData.message || !formData.deliveryDate) {
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos do formulário.",
@@ -27,17 +30,51 @@ const OrderForm = () => {
       return;
     }
 
-    const whatsappMessage = `*Novo Pedido - Divino Bombom*%0A%0A*Nome:* ${formData.name}%0A*Telefone:* ${formData.phone}%0A*E-mail:* ${formData.email}%0A%0A*Pedido:*%0A${formData.message}`;
-    
-    const whatsappNumber = "5571991246835";
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
-    
-    window.open(whatsappUrl, '_blank');
-    
-    toast({
-      title: "Redirecionando para o WhatsApp",
-      description: "Você será direcionado para finalizar seu pedido.",
-    });
+    setLoading(true);
+
+    try {
+      // Save to database
+      const { error } = await supabase.from("orders").insert([{
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        description: formData.message,
+        delivery_date: formData.deliveryDate,
+        status: "pending",
+      }]);
+
+      if (error) throw error;
+
+      // Send to WhatsApp
+      const whatsappMessage = `*Novo Pedido - Divino Bombom*%0A%0A*Nome:* ${formData.name}%0A*Telefone:* ${formData.phone}%0A*E-mail:* ${formData.email}%0A*Data de Entrega:* ${new Date(formData.deliveryDate).toLocaleDateString('pt-BR')}%0A%0A*Pedido:*%0A${formData.message}`;
+      
+      const whatsappNumber = "5571991246835";
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
+      
+      window.open(whatsappUrl, '_blank');
+      
+      toast({
+        title: "Pedido registrado!",
+        description: "Seu pedido foi salvo e você será direcionado para o WhatsApp.",
+      });
+
+      // Clear form
+      setFormData({
+        name: "",
+        phone: "",
+        email: "",
+        message: "",
+        deliveryDate: "",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao registrar pedido",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -115,13 +152,29 @@ const OrderForm = () => {
               </div>
 
               <div>
+                <Label htmlFor="deliveryDate" className="font-inter text-foreground">
+                  Data de Entrega Desejada *
+                </Label>
+                <Input
+                  id="deliveryDate"
+                  name="deliveryDate"
+                  type="date"
+                  value={formData.deliveryDate}
+                  onChange={handleChange}
+                  className="mt-2 font-inter"
+                  min={new Date().toISOString().split('T')[0]}
+                  required
+                />
+              </div>
+
+              <div>
                 <Label htmlFor="message" className="font-inter text-foreground">
                   Seu Pedido *
                 </Label>
                 <Textarea
                   id="message"
                   name="message"
-                  placeholder="Descreva seu pedido: sabores, quantidade, data de entrega, etc."
+                  placeholder="Descreva seu pedido: sabores, quantidade, etc."
                   value={formData.message}
                   onChange={handleChange}
                   className="mt-2 font-inter min-h-32"
@@ -132,8 +185,9 @@ const OrderForm = () => {
               <Button 
                 type="submit"
                 className="w-full font-inter text-lg py-6 bg-gradient-primary hover:shadow-elegant transition-all duration-300 hover:scale-105"
+                disabled={loading}
               >
-                Enviar Pedido via WhatsApp
+                {loading ? "Enviando..." : "Enviar Pedido via WhatsApp"}
               </Button>
             </div>
           </form>
